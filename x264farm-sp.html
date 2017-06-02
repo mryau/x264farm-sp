@@ -1,0 +1,275 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<title>x264farm-sp</title>
+<style type="text/css">
+<!--
+p {
+	text-align: justify;
+}
+h1 {
+	font-variant: small-caps;
+}
+img {
+	border: 1px solid #000000;
+}
+body {
+	text-align: justify;
+}
+code {
+	background-color: #EEEEEE;
+}
+.block {
+	display: block;
+	width: 31em;
+}
+ol {
+	list-style-type: decimal;
+}
+ol ol {
+	list-style-type: lower-latin;
+}
+-->
+</style>
+</head>
+
+<body>
+<h1 style="text-align: center">x264farm-sp</h1>
+<h2 style="text-align: center">A distributed, single-pass, video encoder</h2>
+<h5 style="text-align: center">Copyright &copy; 2008 Reed Wilson (&quot;Omion&quot;)<br />
+&#x63;<!-- This is all crazy stuff to prevent my email from being read by bots -->&#101;&#8203;&#x64;&#105;&#8203;&#108;&#x6C;<span style="display:none"> LOREM IPSUM DOLOR SIT AMET </span>&#97;&#32;&#x41;<span style="display: none">CCEN</span>&#x54;&#32;<!-- If you can think of any other obfuscation to add, using only HTML and CSS, e-mail me! -->&#x67;&#109;<span style="display:none"> CONSECTETUR ADIPISICING ELIT </span>&#x61;<i></i>&#x69;&#108;&#x20;&#68;&#x4F;<b style="display:none">N</b>&#x54;&#8203;&#32;&#99;<span style="display:none"><b>Hmm.. it looks like you don't have CSS. My email will be very hard to decipher</b></span><i style="display:none">SED DO EIUSMOD TEMPOR INCIDIDUNT UT LABORE ET DOLORE MAGNA ALIQUA</i>&#111;<!-- Approaching the end, cap'n! -->&#109;</h5>
+  <h2>Overview</h2>
+  <p>x264farm-sp is a single-pass variant of x264farm. It is a pair of programs which divide video encoding between multiple computers on a high-speed network. The video is encoded with x264, and the output is an H.264/AVC video stream in a Matroska container.</p>
+  <p>The controller program runs on one machine and is responsible for:</p>
+  <ol>
+    <li>Detecting any available agents on the network</li>
+    <li>Splitting the video file into chunks</li>
+    <li>Distributing those chunks amongst the agents</li>
+    <li>Receiving the encoded results</li>
+    <li>Merging the encoded results into a final output file</li>
+  </ol>
+  <p>The agent program runs on each computer (optionally including the computer running the controller) and is responsible for the following:</p>
+  <ol>
+    <li>Receiving the raw data from the controller</li>
+    <li>Passing the data and encoding parameters to x264</li>
+    <li>Returning the encoded data to the controller</li>
+</ol>
+  <h2>Setting up the programs</h2>
+  <p>The controller and the agent must be set up separately. The agents encode video, the controller tells the agent what to encode.</p>
+  <h3>Setting up the agent(s)</h3>
+  <p>Each computer that you want to encode from should have an agent set up on it. The agents run in the background, and need not be restarted for each encode.</p>
+  <p>Each agent needs the following:</p>
+  <ul>
+    <li>Agent executable</li>
+    <li>Access to x264</li>
+    <li>For controlling the priority on a Windows agent running a controller-based encode you need access to nice.exe</li>
+    <li>For agent-based encoding, you need access to everything you would use for encoding from that computer (that is, you need to be able to encode from x264 directly without the use of x264farm)</li>
+    <li>You will have to give the agent access through any firewall you may have</li>
+  </ul>
+  <p>If you have all of the above, you should just be able to run the agent with no parameters. The result should look something like the following:</p>
+  <pre>Config &quot;config.xml&quot; is not a file
+Config file does not seem to be XML
+  Agent ID: 29C725817F4D8991347496E08B576D1A
+  Config file:  config.xml
+  Log file:     out-dump.txt
+  Agent name:
+  Agent port:   40705
+  Control port: 40704
+  Temp dir:     C:\DOCUME~1\Omion\LOCALS~1\Temp\x264farm-sp
+  Encodes:      2
+  x264 name:    x264
+  Niceness:     10
+  Bases:
+    &quot;&quot;</pre>
+<p>This indicates that the agent has been set up properly. The agent ID is generated randomly every time the agent starts up, but if you want to change any other parameters you will have to add a config.xml file.</p>
+<h4>Agent's config.xml file</h4>
+  <p>By default, the file named <code>config.xml</code> in the current directory will be parsed for configuration information. You may override this file name by passing <code>--config &quot;<em>newfile.xml</em>&quot;</code> to the agent. Here is an example of such a file:</p>
+  <pre>&lt;agent-config name=&quot;Bob the agent&quot;&gt;
+  &lt;port controller=&quot;12345&quot; agent=&quot;23456&quot; /&gt;
+  &lt;encodes&gt;4&lt;/encodes&gt;
+  &lt;temp&gt;c:\temp&lt;/temp&gt;
+  &lt;x264&gt;x264.exe&lt;/x264&gt;
+  &lt;bases&gt;
+    &lt;base&gt;c:\avs&lt;/base&gt;
+    &lt;base/&gt;
+    &lt;base&gt;d:\avs&lt;/base&gt;
+  &lt;/bases&gt;
+  &lt;nice&gt;10&lt;/nice&gt;
+  &lt;buffer-frames&gt;8&lt;/buffer-frames&gt;
+&lt;/agent-config&gt;</pre>
+  <p>Any of these elements including the name may be left out (in which case the agent will substitute the default)</p>
+  <dl>
+    <dt><code>&lt;agent-config name=&quot;<em>Bob the agent</em>&quot;&gt;...&lt;/agent-config&gt;</code></dt>
+    <dd>The root of the XML file. The name will be displayed on the controller, and may be left out of the file (it will default to the IP address of the agent)</dd>
+    <dt><code>&lt;port controller=&quot;<em>12345</em>&quot; agent=&quot;<em>23456</em>&quot; /&gt;</code></dt>
+    <dd>The ports that the agent uses to communicate with the controller. This line must match between all of your agents and the controller or the files may not encode. The ports may be any number from 1 to 65535, and the &quot;agent&quot; port must be different from the &quot;controller&quot; port. The default is <code>controller=&quot;40704&quot; agent=&quot;40705&quot;</code>. There is generally no need to change this setting.</dd>
+    <dt><code>&lt;encodes&gt;<em>4</em>&lt;/encodes&gt;</code></dt>
+    <dd>The maximum number of simultaneous encodes from the same controller. This should default to the number of physical CPUs on your computer for Windows and OS-X agents. Linux agents default to 1. Generally, setting this to more than the number of physical processors will do no good.</dd>
+    <dt><code>&lt;temp&gt;<em>c:\temp</em>&lt;/temp&gt;</code></dt>
+    <dd>The directory to store the temporary encodes. This may get fairly large, especially if the agent is terminated in the middle of an encode. It defaults to the &quot;x264farm-sp&quot; subdirectory of whatever OCaml thinks is your system's temp directory. On Windows this is <code>%TEMP%\x264farm-sp</code>. On OS-X it's something like <code>/var/folders/abunchofgarbage/-Tmp-/x264farm-sp</code>. Linux is generally <code>/tmp/x264farm-sp</code>. If this directory does not exist it will be created.</dd>
+    <dt><code>&lt;x264&gt;<em>x264.exe</em>&lt;/x264&gt;</code></dt>
+    <dd>The name of the x264 executable. Change to whatever you want to run to encode the files with. Defaults to <code>x264</code>.</dd>
+    <dt><code>&lt;bases&gt;<em>...</em>&lt;/bases&gt;</code></dt>
+    <dd>Specifies a number of bases for agent-based encoding. Defaults to a single empty base, which means wherever the file is on the controller's computer's filesystem. To disable agent-based encoding, use <code>&lt;bases&gt;&lt;/bases&gt;</code> or <code>&lt;bases/&gt;</code>.</dd>
+    <dt><code>&lt;base&gt;<em>c:\avs</em>&lt;/base&gt;</code></dt>
+    <dd>This is a directory to look for the AVS file in order to do agent-based encoding. When given inside a <code>&lt;bases&gt;...&lt;/bases&gt;</code> element these are searched in the order in which they appear. When given outside the <code>&lt;bases&gt;...&lt;/bases&gt;</code> element it replaces all previously-given bases with the current one.</dd>
+    <dt><code>&lt;base&gt;&lt;/base&gt;</code> or <code>&lt;base/&gt;</code></dt>
+    <dd>Specifies the exact directory where the controller found the file. This is mainly good on an agent which is running on the same computer as the controller, since it exactly specifies the file location.</dd>
+    <dt><code>&lt;nice&gt;<em>10</em>&lt;/nice&gt;</code></dt>
+    <dd>The priority to run x264 with. Specified in Unix-style &quot;niceness&quot; numbers from 0 to 19. On Windows this maps to the priority settings:<br />
+    
+      <table border="1">
+        <tr>
+          <td>0 - 3</td>
+          <td>Normal</td>
+        </tr>
+        <tr>
+          <td>4-11</td>
+          <td>Below Normal</td>
+        </tr>
+        <tr>
+          <td>12-19</td>
+          <td>Idle</td>
+        </tr>
+      </table>
+    </dd>
+    <dt><code>&lt;buffer-frames&gt;<em>8</em>&lt;/buffer-frames&gt;</code></dt>
+    <dd>This specifies the maximum number of frames that can be buffered between the controller and x264 per encode. It only makes a big difference with &quot;bursty&quot; network connections. Defaults to 8. The amount of memory used for this buffer is <code>bufferframes * x * y * 1.5</code> for controller-based encodes. It is unused with agent-based encoding. If you set it too high the controller may send out more frames than are encoded, wasting network bandwidth. I probably should get rid of this setting...</dd>
+  </dl>
+  <h4>Using agent-based encoding</h4>
+  <p>By default, the agents will request that the controller send over the data to be encoded &mdash; this is called <em>controller-based encoding</em>. The problem with this is that it can be a large burden on the network. A 100-megabit network connection can transmit a maximum of about 20 DVD-size frames per second, which can be a major bottleneck in the system.</p>
+  <p>However, if an agent has access to all of the source files, it will encode locally and not load the network or controller. This is called <em>agent-based encoding</em>.</p>
+  <p>The main requirement for using agent-based encoding is that the computer be able to encode the AVS file without using x264farm. If that is the case, then all you need to do is specify a directory base in the agent's config file. Since the directory structure may be different on each computer, the config file must be set up to accomodate those differences through the <code>&lt;base&gt;</code> or <code>&lt;bases&gt;</code> elements. The computer will use those elements to specify starting points to look for the AVS files. Here's an example:</p>
+  <p>Say you have two computers on the network: <em>A</em> and <em>B</em>.<br />
+  Computer <em>A</em> is the one that contains the controller, and it is encoding from the file <code>c:\documents\movies\current\encode.avs</code>.<br />
+  Computer <em>B</em> also has access to the AVS file, but it is located at <code>d:\videos\current\encode.avs</code>.</p>
+  <p>In this case, you should probably use the following in <em>B</em>'s config.xml file:</p>
+  <pre>&lt;agent-config&gt;
+  &lt;base&gt;d:\videos&lt;/base&gt;
+&lt;/agent-config&gt;
+</pre>
+<p>Computer <em>A</em> will tell the agent on computer <em>B</em> that it is encoding the file <code>c:\documents\movies\current\encode.avs</code>. This will cause the agent to look for the AVS in the following directories, in this order:</p>
+<pre>d:\videos\c:\documents\movies\current\encode.avs
+d:\videos\documents\movies\current\encode.avs
+d:\videos\movies\current\encode.avs
+d:\videos\current\encode.avs
+d:\videos\encode.avs</pre>
+<p>Notice that all of the search directories start with the <code>&lt;base&gt;</code> directory, and that the first directory searched is simply the agent's <code>&lt;base&gt;</code> stuck to the front of the controller's directory. The search is depth-first, and will terminate as soon as the correct file is found. If the file is not found, the agent will fall back to controller-based encoding.</p>
+<p><a name="affinity" />As of version 1.03, the agent will attempt to utilize multiple processors efficiently. If the number of agent-based x264 programs is greater than or equal to the number of processors, x264farm will assign each x264 program to one processor. Also, if there are more x264 programs open than processors, all of the spare programs will get thear priority pushed down to the idle class. This means that some encodings will get done relatively quickly whereas others will be basically stopped. This prevents a large number of programs from swamping the processor and slowing everything down. The priorities are re-calculated every 5 seconds, so when one program exits  others will fill in the empty scheduling spot. If this behavior is not desired (or doesn't work for some reason), then use the <code>--nosched</code> option for the agent. This will prevent x264farm from fiddling with the scheduling of x264. The functionality of controller-based encoding has not changed, and the number of controller-based encodes does not count toward any of the rescheduling policies.</p>
+<h3>Setting up the controller</h3>
+  <p>The controller is started every encode. A basic example of the controller command line is the following:</p>
+  <p><code>controller -i &quot;input.avs&quot; -o &quot;output.mkv&quot; -x &quot;--crf 26 -b&quot; --seek 1000 --frames 2000 --zones 0,250,b=0.75</code></p>
+  <dl>
+    <dt><code>-i &quot;<em>input.avs</em>&quot;</code> or <code>--avs &quot;<em>input.avs</em>&quot;</code></dt>
+    <dd>REQUIRED<br />
+    The input AVS file.</dd>
+    <dt><code>-o &quot;<em>output.mkv</em>&quot;</code></dt>
+    <dd>Optional, defaults to &quot;output.mkv&quot;<br />
+    The file to store the final video. This is always a Matroska file. Changing the extension to something other than &quot;.mkv&quot; will result in a Matroska file that has the wrong extension.</dd>
+    <dt><code>--seek <em>1000</em></code>, <code>--frames <em>2000</em></code>, <code>--zones <em>0,250,b=0.75</em></code></dt>
+    <dd>Optional, defaults to all frames and &quot;normal&quot; zones<br />
+    Same as the x264 options of the same name. Note that <code>--zones</code> is specified as output frames. In the above example, the output frames 0-250 will have a zone applied to them, which maps to the input AVS frames 1000-1250 due to the <code>--seek</code> parameter.</dd>
+    <dt><code>-x &quot;<em>--crf 26 -b</em>&quot;</code></dt>
+    <dd>REQUIRED (since x264 now needs a ratecontrol setting)<br/>
+    The rest of the x264 options. Use quotes to contain all of them after the <code>-x</code>. DO NOT put <code>--seek</code>, <code>--frames</code>, or <code>--zones</code> in this; use the controller's settings of the same name. Also, never set <code>--pass</code> or any options with a filename &#8212; these are set by the controller automatically.</dd>
+  </dl>
+  <p>The rest of the controller options:</p>
+  <dl>
+    <dt><code>--config &quot;<em>filename</em>&quot;</code></dt>
+    <dd>Optional, defaults to <code>&quot;config.xml&quot;</code></dd>
+    <dd>Specifies the config file</dd>
+    <dt><code>--logfile &quot;<em>filename</em>&quot;</code></dt>
+    <dd>Optional, defaults to <code>&quot;out-dump.txt&quot;</code><br />
+    The log file for the controller. These files are mainly used by me when something goes wrong. If everything works fine and you want to save a bit of disk space, set it to the null device of you OS (for Windows this is the file <code>&quot;NUL&quot;</code>, for just about everything else it's <code>&quot;/dev/null&quot;</code>).</dd>
+    <dt><code>--clean</code></dt>
+    <dd>Tells the controller to clean out the current AVS's temporary directory. This will only leave the files which are useful to the current encode. For example, say you made one encode with <code>--seek 1000</code>, then started another encode with <code>--frames 2000</code>. The frames from 1000 to 1999 will be reused from the first encode, but the remainding frames are not used. Using <code>--clean</code> on the second encode will remove all frames from 2000 to the end of the first encode.</dd>
+    <dt><code>--restart</code></dt>
+    <dd>Tells the controller to remove all temp files for the current AVS file. No matter what was encoded in the past, this encode will start from scratch.</dd>
+  </dl>
+<h4>Controller's config.xml file</h4>
+  <p>To change other settings, use the config.xml file (or whatever you set <code>--config</code> to). Here's an example:</p>
+  <pre>&lt;controller-config name=&quot;Bill the controller&quot;&gt;
+  &lt;port controller=&quot;12345&quot; agent=&quot;23456&quot; /&gt;
+  &lt;temp&gt;c:\temp&lt;/temp&gt;
+  &lt;agents&gt;
+    &lt;agent&gt;
+      &lt;ip&gt;127.0.0.1&lt;/ip&gt;
+      &lt;port&gt;50765&lt;/port&gt;
+      &lt;name&gt;Local agent&lt;/name&gt;
+    &lt;/agent&gt;
+    &lt;agent&gt;
+      &lt;ip&gt;72.14.207.99&lt;/ip&gt;
+      &lt;port&gt;65432&lt;/port&gt;
+    &lt;/agent&gt;
+  &lt;/agents&gt;
+&lt;/controller-config&gt;</pre>
+<p>Most of these elements may be left out, but any <code>&lt;agent&gt;</code> elements must contain both an <code>&lt;ip&gt;</code> and a <code>&lt;port&gt;</code> sub-element.</p>
+  <dl>
+    <dt><code>&lt;controller-config name=&quot;<em>Bill the controller</em>&quot;&gt;...&lt;/controller-config&gt;</code></dt>
+    <dd>The root of the XML file. The name may be left out. Everything in the file must be inside this.</dd>
+    <dt><code>&lt;port controller=&quot;<em>12345</em>&quot; agent=&quot;<em>23456</em>&quot; /&gt;</code></dt>
+    <dd>The ports that the controller uses to communicate with the agents. This line must match between all of your agents and the controller or the files may not encode. The ports may be any number from 1 to 65535, and the &quot;agent&quot; port must be different from the &quot;controller&quot; port. The default is <code>controller=&quot;40704&quot; agent=&quot;40705&quot;</code>. There is generally no need to change this setting.</dd>
+    <dt><code>&lt;temp&gt;<em>c:\temp</em>&lt;/temp&gt;</code></dt>
+    <dd>The directory to store the video pieces received from the agents. At the end of the encode, this directory will be at least as large as the output file (and sometimes larger), so it generally needs a bit of space. This directory is not cleaned out at the end of the encode, so some manual cleaning may be necessary after a while. I'm going to add an option to clean it eventually. This defaults to the same directory as the agent's temp, whatever that may be on your OS.</dd>
+    <dt><code>&lt;agents&gt;<em>...</em>&lt;/agents&gt;</code></dt>
+    <dd>    Contains all hard-coded agents. This should only need to be used for agents outside the local network. All local agents will be discovered automatically as long as the <code>&lt;port&gt;</code> element is set properly.</dd>
+    <dt><code>&lt;agent&gt;<em>...</em>&lt;/agent&gt;</code></dt>
+    <dd>A single hard-coded agent. This must contain an <code>&lt;ip&gt;</code> and a <code>&lt;port&gt;</code> sub-element, or it will be ignored.</dd>
+    <dt><code>&lt;ip&gt;<em>127.0.0.1</em>&lt;/ip&gt;</code></dt>
+    <dd>The IP address for the agent. IPv6 is not supported yet...</dd>
+    <dt><code>&lt;port&gt;<em>50765</em>&lt;/port&gt;</code></dt>
+    <dd>This is the port that the agent is actually listening for controllers on. It is different from what the &lt;port&gt; element is set to. Currently there is no way to specify this on the agent side, so it's a bit useless (although it's usually port 40701)</dd>
+    <dt><code>&lt;name&gt;<em>Local agent</em>&lt;/name&gt;</code></dt>
+    <dd>An optional name for this agent. Actually, as soon as the agent connects, it will replace this name with its own.</dd>
+  </dl>
+  <h2>Current issues</h2>
+  <ul>
+		<li>There seems to be an issue where the outputting will stall after all of the frames get finished. If this occurs, just restart the controller and it will rewrite the file.</li>
+    <li>The <code>&lt;agents&gt;</code> section in the controller's config.xml file currently does nothing. All agents must be &quot;discovered&quot; by the controller when it runs.</li>
+    <li>If an incorrect setting is passed to x264 through the controller's <code>-x</code> argument, it will simply keep attempting to re-encode it and never give a warning.</li>
+    <li>The temp files from the controller are never deleted. This may make the temp directory very large after a few encodes.</li>
+    <li>The exact ports that the programs use to communicate to each other change with every encode. The <code>&lt;port&gt;</code> setting in the config.xml files only changes the port used for agent/controller discovery. The agent is usually listening on port 40701 for new controllers. In controller-based encoding, the video data is sent to a different port specific to the encode (generally around 56792). This may make firewall configuration and tunnelling difficult.</li>
+  </ul>
+<h2><a name="changelog">Changelog</a></h2>
+	<dl>
+		<dt>1.07</dt>
+		<dd>If both agent and controller are &gt;=1.07, they will use a more robust method of dealing with spurious connections<br />
+		Updated the agent's side of controller-based encoding to be a bit faster (like what 1.06 did in the controller's side<br />
+		Agent-based encoding now uses Windows jobs to keep track of any sub-processes that the encoder may run. This means running x264 through a .bat file works properly now<br />
+		More accurate detection of the number of processors on non-Windows agent machines</dd>
+		<dt>1.06</dt>
+		<dd>Fixed a problem with agent-based encoding on filenames with spaces<br />
+		Removed GetProcessId since that seems to be the only reason it doesn't work with Windows 2000<br />
+		Made controller-based data transmission faster<br />
+		Agents now tell the controller when x264 fails
+		</dd>
+		<dt>1.05</dt>
+		<dd>Controller can now do multiple encodes at once.<br />
+		Fixed an issue with encoding from a UNC directory<br />
+		Fixed up some problems with getting the agent-based filehandles to close properly<br />
+		Fixed a problem with Windows not setting the proper &quot;from&quot; address when broadcasting from a computer with multiple network cards<br />
+		Made the output a bit nicer</dd>
+    <dt>1.04</dt>
+    <dd>Controller now supports output to MP4 files (use the &quot;.mp4&quot; extension - the x264 programs you use need not support MP4; it is handled entirely through the controller)<br />
+    Added approximate FPS and percentage done<br />
+    Controller output is much more organized<br />
+    Controller will eventually remove agents from the printout if they have been disconnected for a while (30 seconds in the current build)<br />
+    Optimized start frame algorithm to prioritize ranges near the beginning, even if they are not quite the largest ranges<br />
+    Fixed a problem with not choosing the first unfinished frame if it is part of a range less than 100 frames long</dd>
+    <dt>1.03</dt>
+    <dd>Agents now prefer to encode to MP4, or raw bitstream if MP4 is not available, as they both have lower latency than MKV. Note that MKV is still the only supported output format for now<br />
+    Agent-based encoding now uses processor affinity and dynamic priorities to make it slightly more efficient (see <a href="#affinity">this paragraph</a> for more info)</dd>
+    <dt>1.02</dt>
+    <dd>Removed dependency on avs2yuv<br />
+    Fixed an issue which resulted in out-of-sync video, caused by my previous fix of certain x264 build failing on every job...</dd>
+    <dt>1.01</dt>
+    <dd>Worked around an issue with controller-based encodes from some builds of x264. The agent now displays a warning when starting up, rather than failing on every job<br />
+    Check for x264 sanity before agent startup<br />
+    Strip x264 SEI from file when transferring to controller<br />
+    Added --clean and --restart to the controller to do simple temp-file control</dd>
+    <dt>1.00</dt>
+    <dd>First release</dd>
+  </dl>
+</body>
+</html>
